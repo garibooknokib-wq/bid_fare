@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bid fare recommender</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+:root{
+  --ink:#10201B; --paper:#F5F4EE; --card:#fff;
+  --green:#0B6E4F; --green-deep:#064B36; --green-wash:#EAF2ED;
+  --amber:#E39B29; --amber-wash:#FBF1DF;
+  --muted:#6B7772; --line:#DEE3DD; --danger:#A03828; --danger-wash:#F9EDEA;
+  --r:10px; --shadow:0 1px 2px rgba(16,32,27,.05),0 8px 24px -16px rgba(16,32,27,.28);
+}
+*{box-sizing:border-box} html,body{margin:0}
+body{background:var(--paper);color:var(--ink);
+  font:400 15px/1.55 "IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+h1,h2,h3{font-family:"Bricolage Grotesque","IBM Plex Sans",sans-serif;margin:0;letter-spacing:-.02em}
+.mono{font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums}
+.masthead{border-bottom:1px solid var(--line);background:var(--card);padding:14px 22px;
+  display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.wordmark{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:19px;letter-spacing:-.03em}
+.wordmark span{color:var(--green)}
+.masthead .sub{color:var(--muted);font-size:13px}.masthead .spacer{flex:1}
+.badge{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--green-deep);background:var(--green-wash);border:1px solid #CADDD2;border-radius:999px;padding:4px 10px}
+.shell{max-width:1180px;margin:0 auto;padding:26px 22px 64px;display:grid;
+  grid-template-columns:390px minmax(0,1fr);gap:26px;align-items:start}
+@media (max-width:920px){.shell{grid-template-columns:1fr;padding:18px 14px 48px}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow)}
+.card .pad{padding:20px}
+.panel-title{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);
+  font-family:"IBM Plex Mono",monospace;margin-bottom:14px}
+label.fl{display:block;font-size:12.5px;font-weight:500;color:var(--muted);margin:0 0 6px}
+.field{margin-bottom:16px;position:relative}
+input,select{width:100%;padding:10px 11px;font:inherit;color:var(--ink);background:#fff;
+  border:1px solid var(--line);border-radius:8px}
+input:focus,select:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-wash)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.seg{display:flex;gap:6px}
+.seg button{flex:1;padding:9px 6px;font:500 13.5px/1 "IBM Plex Sans",sans-serif;cursor:pointer;
+  background:#fff;border:1px solid var(--line);border-radius:8px;color:var(--muted)}
+.seg button.on{background:var(--green);border-color:var(--green);color:#fff}
+button.go{width:100%;padding:12px;font:600 15px "IBM Plex Sans",sans-serif;cursor:pointer;
+  background:var(--green);color:#fff;border:none;border-radius:8px}
+button.go:hover{background:var(--green-deep)} button.go:disabled{opacity:.5;cursor:default}
+.ac{position:absolute;z-index:40;left:0;right:0;top:100%;margin-top:4px;background:#fff;
+  border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);max-height:230px;overflow:auto}
+.ac div{padding:8px 11px;font-size:13px;cursor:pointer;border-bottom:1px solid #F1F3F0}
+.ac div:hover{background:var(--green-wash)} .ac .src{color:var(--muted);font-size:11px;cursor:default}
+.hint{font-size:12px;color:var(--muted);margin-top:5px}
+.quote{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:0;border:1px solid var(--line);
+  border-radius:var(--r);overflow:hidden;margin-bottom:16px}
+.quote .cell{padding:18px 14px;text-align:center;border-right:1px solid var(--line)}
+.quote .cell:last-child{border-right:none}
+.quote .cell.mid{background:var(--green-wash)}
+.quote .lab{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+  font-family:"IBM Plex Mono",monospace;margin-bottom:7px}
+.quote .val{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:25px;letter-spacing:-.02em}
+.quote .cell.mid .val{font-size:34px;color:var(--green-deep)}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px}
+.fact{border:1px solid var(--line);border-radius:8px;padding:11px 12px}
+.fact .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;
+  font-family:"IBM Plex Mono",monospace}
+.fact .v{font-weight:600;margin-top:3px}
+.warn{background:var(--amber-wash);border:1px solid #EFD9AE;border-radius:8px;padding:11px 13px;
+  font-size:13px;margin-bottom:10px}
+.err{background:var(--danger-wash);border:1px solid #E7C7C0;border-radius:8px;padding:12px 14px;
+  color:var(--danger);font-size:13.5px}
+#map{height:300px;border-radius:8px;border:1px solid var(--line);margin-bottom:16px}
+table.m{width:100%;border-collapse:collapse;font-size:13px}
+table.m th,table.m td{text-align:right;padding:7px 8px;border-bottom:1px solid #F1F3F0}
+table.m th:first-child,table.m td:first-child{text-align:left}
+table.m th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);
+  font-family:"IBM Plex Mono",monospace;font-weight:500}
+.empty{color:var(--muted);font-size:14px;padding:40px 10px;text-align:center}
+.note{font-size:12.5px;color:var(--muted);line-height:1.6}
+.conf{display:flex;align-items:flex-start;gap:15px;border:1px solid var(--line);
+  border-radius:var(--r);padding:15px 17px;margin-bottom:16px}
+.conf .num{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;
+  font-size:32px;letter-spacing:-.02em;line-height:1;min-width:60px}
+.conf .num small{display:block;font-family:"IBM Plex Mono",monospace;
+  font-weight:500;font-size:10px;letter-spacing:.05em;color:var(--muted);margin-top:3px}
+.conf .meta{flex:1;min-width:0}
+.conf .tier{font-weight:600;font-size:14.5px;margin-bottom:7px}
+.conf .bar{height:7px;background:#EDEFEC;border-radius:99px;overflow:hidden;position:relative}
+.conf .bar i{display:block;height:100%;border-radius:99px}
+.conf .bar u{position:absolute;top:-3px;width:2px;height:13px;background:var(--muted);opacity:.55}
+.conf ul{margin:9px 0 0;padding-left:16px;font-size:12px;color:var(--muted);line-height:1.65}
+.conf .pen{color:var(--danger)}
+.conf .basis{font-size:11px;color:var(--muted);margin-top:8px;
+  font-family:"IBM Plex Mono",monospace}
+.c-hi{color:var(--green-deep)} .c-hi-bg{background:var(--green)}
+.c-md{color:#8A6A16} .c-md-bg{background:var(--amber)}
+.c-lo{color:var(--danger)} .c-lo-bg{background:var(--danger)}
+
+</style>
+</head>
+<body>
+<div class="masthead">
+  <div class="wordmark">bid<span>·</span>fare</div>
+  <div class="sub">driver bid recommender</div>
+  <div class="spacer"></div>
+  <div class="badge" id="bundleBadge">loading…</div>
+</div>
+
+<div class="shell">
+  <!-- ------------------------------------------------ form -->
+  <div class="card"><div class="pad">
+    <div class="panel-title">Trip details</div>
+
+    <div class="field">
+      <label class="fl">Trip type</label>
+      <div class="seg" id="tripSeg"></div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label class="fl">Car type</label>
+        <select id="carType"></select>
+      </div>
+      <div class="field">
+        <label class="fl">Seats</label>
+        <input id="seats" type="number" min="2" max="15" value="4">
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="fl">Pickup location</label>
+      <input id="puInput" placeholder="type 3+ characters, e.g. Gulshan" autocomplete="off">
+      <div class="ac" id="puAc" style="display:none"></div>
+      <div class="hint" id="puHint"></div>
+    </div>
+
+    <div class="field">
+      <label class="fl">Dropoff location</label>
+      <input id="doInput" placeholder="e.g. Cox's Bazar" autocomplete="off">
+      <div class="ac" id="doAc" style="display:none"></div>
+      <div class="hint" id="doHint"></div>
+    </div>
+
+    <div class="field">
+      <label class="fl">Pickup date &amp; time</label>
+      <input id="pickupDt" type="datetime-local">
+    </div>
+
+    <div class="field" id="returnField" style="display:none">
+      <label class="fl">Return date &amp; time <span style="color:var(--danger)">*</span></label>
+      <input id="returnDt" type="datetime-local">
+      <div class="hint">Trip duration is one of the strongest features for round trips.</div>
+    </div>
+
+    <div class="field">
+      <label class="fl">Distance override (km) — optional</label>
+      <input id="kmOverride" type="number" min="1" step="0.1" placeholder="leave blank to route automatically">
+      <div class="hint">Blank uses OSRM road distance; round trips are doubled.</div>
+    </div>
+
+    <div class="field">
+      <label class="fl">Fuel price (Tk/L) — optional</label>
+      <input id="fuelPrice" type="number" min="50" max="400" step="0.5">
+      <div class="hint" id="fuelHint">Blank uses the current pump price.</div>
+    </div>
+
+    <button class="go" id="goBtn">Get bid recommendation</button>
+    <div class="hint" style="margin-top:10px">Everything runs locally against your model bundle.</div>
+  </div></div>
+
+  <!-- ------------------------------------------------ result -->
+  <div>
+    <div class="card" style="margin-bottom:22px"><div class="pad">
+      <div class="panel-title">Recommendation</div>
+      <div id="result"><div class="empty">Pick a route and press <b>Get bid recommendation</b>.</div></div>
+    </div></div>
+
+    <div class="card"><div class="pad">
+      <div class="panel-title">Backtest accuracy of the loaded model</div>
+      <div id="segments"><div class="empty">loading…</div></div>
+      <div class="note" style="margin-top:14px">
+        Measured on a chronologically held-out slice never used for fitting.
+        <b>within20</b> is the share of trips predicted inside ±20% of the fare that
+        was actually paid. <b>bias</b> is the average signed error: negative means the
+        model tends to quote low.
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let META = null, PU = null, DO = null, TRIP = null, map, layer;
+
+const fmt = n => n == null ? "—" : Number(n).toLocaleString("en-US");
+
+async function boot(){
+  META = await (await fetch("/api/meta")).json();
+  $("bundleBadge").textContent = META.bundle;
+  TRIP = META.trip_types.includes("one_way") ? "one_way" : META.trip_types[0];
+
+  $("tripSeg").innerHTML = META.trip_types.map(t =>
+    `<button data-t="${t}">${t.replace("_"," ")}</button>`).join("");
+  $("tripSeg").querySelectorAll("button").forEach(b =>
+    b.onclick = () => { TRIP = b.dataset.t; syncTrip(); });
+
+  $("pickupDt").value = META.default_pickup;
+  if (META.fuel){
+    $("fuelPrice").placeholder = `current: ${META.fuel.current_price}`;
+    $("fuelHint").textContent = `Blank uses Tk ${META.fuel.current_price}/L `
+      + `(${META.fuel.grade.replace("_"," / ")} average, in force since ${META.fuel.effective_from}). `
+      + `Enter a price to test a scenario.`;
+  }
+  $("returnDt").value = META.default_return;
+  syncTrip();
+  renderSegments();
+}
+
+function syncTrip(){
+  $("tripSeg").querySelectorAll("button").forEach(b =>
+    b.classList.toggle("on", b.dataset.t === TRIP));
+  $("returnField").style.display = TRIP === "round_way" ? "block" : "none";
+  const cars = META.car_types[TRIP] || [];
+  const keep = $("carType").value;
+  $("carType").innerHTML = cars.map(c => `<option>${c}</option>`).join("");
+  if (cars.includes(keep)) $("carType").value = keep;
+  syncSeats();
+}
+function syncSeats(){
+  const s = (META.seats_by_car[TRIP] || {})[$("carType").value];
+  if (s) $("seats").value = s;
+}
+
+function attachAc(inputId, acId, hintId, setter){
+  let timer = null;
+  $(inputId).addEventListener("input", () => {
+    clearTimeout(timer);
+    const q = $(inputId).value.trim();
+    setter(null); $(hintId).textContent = "";
+    if (q.length < 3){ $(acId).style.display = "none"; return; }
+    timer = setTimeout(async () => {
+      const r = await (await fetch("/api/places?q=" + encodeURIComponent(q))).json();
+      const box = $(acId);
+      if (!r.results.length){ box.style.display = "none"; return; }
+      box.innerHTML = `<div class="src">${r.source}</div>` + r.results.map((x,i) =>
+        `<div data-i="${i}">${x.label}<br><span style="color:var(--muted);font-size:11px">${x.district || ""}</span></div>`
+      ).join("");
+      box.querySelectorAll("div[data-i]").forEach(d => d.onclick = () => {
+        const x = r.results[+d.dataset.i];
+        setter(x); $(inputId).value = x.label;
+        $(hintId).textContent = `${x.district || "?"} · ${x.lat.toFixed(4)}, ${x.lon.toFixed(4)}`;
+        box.style.display = "none";
+      });
+      box.style.display = "block";
+    }, 300);
+  });
+  document.addEventListener("click", e => {
+    if (!$(acId).contains(e.target) && e.target !== $(inputId)) $(acId).style.display = "none";
+  });
+}
+
+function renderSegments(){
+  const s = META.segments;
+  $("segments").innerHTML = `<table class="m"><thead><tr>
+    <th>trip type</th><th>model</th><th>train rows</th><th>SMAPE</th>
+    <th>within10</th><th>within20</th><th>bias</th><th>band cov</th></tr></thead><tbody>` +
+    Object.entries(s).map(([tt,m]) => `<tr>
+      <td>${tt.replace("_"," ")}</td><td class="mono">${m.selected_model}</td>
+      <td class="mono">${fmt(m.n_train)}</td><td class="mono">${m.SMAPE}%</td>
+      <td class="mono">${m.within10}%</td><td class="mono">${m.within20}%</td>
+      <td class="mono" style="color:${m.bias<-150?'var(--danger)':'inherit'}">${m.bias>0?"+":""}${fmt(m.bias)}</td>
+      <td class="mono">${m.band_coverage}%</td></tr>`).join("") +
+    `</tbody></table>`;
+}
+
+function confBlock(c){
+  if (!c) return "";
+  const cls = c.score >= 85 ? "hi" : c.score >= 75 ? "md" : "lo";
+  const items = c.notes.map(n => `<li>${n}</li>`).join("")
+    + c.penalties.map(p => `<li class="pen">${p}</li>`).join("");
+  return `<div class="conf">
+      <div class="num c-${cls}">${c.score}<small>/ 100</small></div>
+      <div class="meta">
+        <div class="tier c-${cls}">${c.label} confidence</div>
+        <div class="bar">
+          <i class="c-${cls}-bg" style="width:${c.score}%"></i>
+          <u style="left:${c.global_rate}%" title="typical for this trip type: ${c.global_rate}"></u>
+        </div>
+        <ul>${items}</ul>
+        <div class="basis">Expected chance this lands within &plusmn;20% of the
+          real fare. ${c.basis}. Tick mark = typical for this trip type.</div>
+      </div>
+    </div>`;
+}
+
+function showMap(res){
+  if (!map){
+    map = L.map("map", {scrollWheelZoom:false}).setView([23.8,90.4], 7);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      {maxZoom:18, attribution:"© OpenStreetMap"}).addTo(map);
+  }
+  if (layer) map.removeLayer(layer);
+  layer = L.layerGroup().addTo(map);
+  L.marker([PU.lat, PU.lon]).addTo(layer).bindPopup("Pickup: " + (res.pickup_district||""));
+  L.marker([DO.lat, DO.lon]).addTo(layer).bindPopup("Dropoff: " + (res.dropoff_district||""));
+  const line = res.geometry && res.geometry.length
+    ? L.polyline(res.geometry, {color:"#0B6E4F", weight:4, opacity:.8})
+    : L.polyline([[PU.lat,PU.lon],[DO.lat,DO.lon]],
+                 {color:"#6B7772", weight:3, dashArray:"6 6"});
+  line.addTo(layer);
+  map.fitBounds(line.getBounds(), {padding:[28,28]});
+  setTimeout(() => map.invalidateSize(), 60);
+}
+
+async function getQuote(){
+  if (!PU || !DO){
+    $("result").innerHTML = `<div class="err">Pick both a pickup and a dropoff from the suggestions list.</div>`;
+    return;
+  }
+  if (TRIP === "round_way" && !$("returnDt").value){
+    $("result").innerHTML = `<div class="err">Round trips need a return date and time.</div>`;
+    return;
+  }
+  $("goBtn").disabled = true; $("goBtn").textContent = "calculating…";
+  const body = {
+    trip_type: TRIP, car_type: $("carType").value, seats: +$("seats").value,
+    pickup: PU, dropoff: DO,
+    pickup_datetime: $("pickupDt").value || null,
+    return_datetime: TRIP === "round_way" ? ($("returnDt").value || null) : null,
+    km_override: $("kmOverride").value ? +$("kmOverride").value : null,
+    fuel_price: $("fuelPrice").value ? +$("fuelPrice").value : null
+  };
+  try{
+    const r = await fetch("/api/quote", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
+    const res = await r.json();
+    if (!r.ok) throw new Error(res.detail || "request failed");
+    render(res);
+  }catch(e){
+    $("result").innerHTML = `<div class="err">${e.message}</div>`;
+  }finally{
+    $("goBtn").disabled = false; $("goBtn").textContent = "Get bid recommendation";
+  }
+}
+
+function render(res){
+  $("result").innerHTML = `
+    <div class="quote">
+      <div class="cell"><div class="lab">safe / low</div><div class="val mono">৳${fmt(res.low)}</div></div>
+      <div class="cell mid"><div class="lab">suggested bid</div><div class="val mono">৳${fmt(res.typical)}</div></div>
+      <div class="cell"><div class="lab">aggressive / high</div><div class="val mono">৳${fmt(res.high)}</div></div>
+    </div>
+    ${confBlock(res.confidence)}
+    ${res.warnings.map(w => `<div class="warn">${w}</div>`).join("")}
+    <div id="map"></div>
+    <div class="facts">
+      <div class="fact"><div class="k">distance</div><div class="v mono">${res.total_km} km</div></div>
+      <div class="fact"><div class="k">per km</div><div class="v mono">৳${res.per_km}</div></div>
+      <div class="fact"><div class="k">straight line</div><div class="v mono">${res.straight_km} km</div></div>
+      <div class="fact"><div class="k">band width</div><div class="v mono">${res.band_pct}%</div></div>
+      <div class="fact"><div class="k">route</div><div class="v mono">${res.pickup_district} → ${res.dropoff_district}</div></div>
+      <div class="fact"><div class="k">model</div><div class="v mono">${res.model}</div></div>
+      ${res.region_uplift && res.region_uplift.pct !== 0 ? `<div class="fact">
+        <div class="k">adjustment</div>
+        <div class="v mono">${res.region_uplift.pct > 0 ? "+" : ""}${res.region_uplift.pct}%</div></div>` : ""}
+      ${res.fuel ? `<div class="fact"><div class="k">fuel ${res.fuel.overridden ? "(scenario)" : "price"}</div>
+        <div class="v mono">৳${res.fuel.price}/L</div></div>
+      <div class="fact"><div class="k">fuel effect</div>
+        <div class="v mono">${res.fuel.effect_pct > 0 ? "+" : ""}${res.fuel.effect_pct}%</div></div>` : ""}
+    </div>
+    <div class="note">
+      Distance from ${res.km_source}.
+      ${res.fuel ? `Fuel effect is relative to the training reference of Tk ${res.fuel.reference}/L.` : ""}
+      ${res.region_uplift ? (() => {
+          const u = res.region_uplift, parts = [];
+          if (u.region_pct > 0)
+            parts.push(`+${u.region_pct}% for ${u.pickup_region} to ${u.dropoff_region}`);
+          else
+            parts.push(u.same_region
+              ? `no region uplift (both ends in ${u.pickup_region})`
+              : `no region uplift for ${u.pickup_region} to ${u.dropoff_region}`);
+          if (u.car_pct > 0) parts.push(`+${u.car_pct}% for ${u.car_type}`);
+          if (u.rule_pct) parts.push(`${u.rule_pct > 0 ? "+" : ""}${u.rule_pct}% from a pricing rule`);
+          const from = `৳${Number(u.fare_before).toLocaleString("en-US")}`;
+          const to = `৳${Number(res.typical).toLocaleString("en-US")}`;
+          if (u.pct > 0)
+            return `Manual adjustment: ${parts.join(", ")} = +${u.pct}%, taking the model's ${from} up to ${to}.`;
+          if (u.pct < 0)
+            return `Manual adjustment: ${parts.join(", ")} = ${u.pct}%, bringing the model's ${from} down to ${to}.`;
+          return `Manual adjustment: ${parts.join(", ")} — the model's figure is unchanged.`;
+        })() : ""} The band is calibrated so roughly
+      ${res.coverage_target}% of comparable trips settle inside it; on backtest this
+      model landed within ±20% on ${res.accuracy.within20}% of trips
+      (SMAPE ${res.accuracy.SMAPE}%, MAE ৳${fmt(res.accuracy.MAE)}).
+      ${res.snapped.length ? "<br>Snapped to nearest district: " + res.snapped.join(", ") + "." : ""}
+    </div>`;
+  showMap(res);
+}
+
+attachAc("puInput","puAc","puHint", v => PU = v);
+attachAc("doInput","doAc","doHint", v => DO = v);
+$("carType").addEventListener("change", syncSeats);
+$("goBtn").onclick = getQuote;
+boot();
+</script>
+</body>
+</html>

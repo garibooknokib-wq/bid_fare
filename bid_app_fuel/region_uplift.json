@@ -1,0 +1,44 @@
+{
+  "_comment": "Manual cross-region fare uplift. Edit, save, restart the app. No Colab re-export needed. Same region at BOTH ends is always 0%.",
+  "_regions": "CENTRAL = Dhaka + surrounding districts | PADMA = Barishal/Khulna/Faridpur side | JAMUNA = Rajshahi/Rangpur side | MEGHNA = Chattogram/Cumilla side | SYLHET = Sylhet side",
+  "_rule_note": "destination = use the DROPOFF region's percentage (directional). max = use the higher of the two regions' percentages (symmetric). Same region at both ends is 0% under either rule.",
+  "rule": "destination",
+  "region_pct": {
+    "CENTRAL": 0.0,
+    "PADMA": 0.0,
+    "JAMUNA": 0.0,
+    "MEGHNA": 0.0,
+    "SYLHET": 0.0
+  },
+  "_pair_pct_note": "THE LIVE RULE. \"A|B\" applies in both directions; \"A>B\" would apply to that direction only. A region listed against ITSELF (e.g. \"CENTRAL|CENTRAL\") marks up trips that start and end inside that region -- without such an entry, same-region trips are always 0%. CENTRAL|MEGHNA is 0 for now -- change the number to switch it on.",
+  "pair_pct": {
+    "CENTRAL|PADMA": 20.0,
+    "CENTRAL|JAMUNA": 15.0,
+    "CENTRAL|SYLHET": 10.0,
+    "CENTRAL|MEGHNA": 0.0,
+    "CENTRAL|CENTRAL": 7.5
+  },
+  "cap": 40.0,
+  "_region_pct_note": "Fallback for a cross-region trip NOT listed in pair_pct. All zero, so only the pairs below are marked up.",
+  "car_pct": {
+    "Sedan Premium": 13.0
+  },
+  "_car_pct_note": "Flat markup per vehicle class, applied on EVERY route (same region or not). Add other car types here as needed.",
+  "combine": "add",
+  "_combine_note": "How region and car markups stack when both apply. add = 20 + 13 = 33%. compound = 1.20 x 1.13 = 35.6%. max = 20% (car only tops up).",
+  "rules": [
+    {
+      "name": "long round trip, large vehicle",
+      "trip_type": "round_way",
+      "car_types": [
+        "Noah",
+        "HiAce"
+      ],
+      "min_km": 450.0,
+      "pct": -10.0
+    }
+  ],
+  "_rules_note": "Conditional adjustments, ADDED on top of region + car. Negative pct = discount. Conditions you can use: trip_type (one_way/round_way), car_types (list), min_km / max_km (total_km; round trips cover BOTH legs), regions (list; matches if EITHER end is in it). Omit a condition to skip checking it.",
+  "floor": -30.0,
+  "_floor_note": "Lowest final percentage allowed, so discounts have room. cap is the upper limit."
+}
